@@ -1,0 +1,369 @@
+---
+  - hosts: hub
+    sudo: yes
+    vars: 
+     date: "{{lookup('pipe','date +%Y%m%d%H%M')}}"
+     mysql_host: "{{lookup('ini','hub.host type=properties file=hub.properties')}}"
+     mysql_user: "{{lookup('ini','hub.mysql_user type=properties file=hub.properties')}}"
+     mysql_password: "{{lookup('ini','hub.mysql_password type=properties file=hub.properties')}}"
+     product_version: "{{lookup('ini','hub.product_version type=properties file=hub.properties')}}"
+     http_port: "{{lookup('ini','hub.http_port type=properties file=hub.properties') |int}}"
+     https_port: "{{lookup('ini','hub.https_port type=properties file=hub.properties') |int}}"
+     repo_home: "{{lookup('ini','hub.repo_home type=properties file=hub.properties')}}"
+     hub_home: "{{lookup('ini','hub.hub_home type=properties file=hub.properties')}}"
+     import_dbs: "{{lookup('ini','hub.import_dbs type=properties file=hub.properties') |int}}"
+     wso2_mail_address: "{{lookup('ini','hub.wso2_mail_address type=properties file=hub.properties')}}"
+     wso2_mail_password: "{{lookup('ini','hub.wso2_mail_password type=properties file=hub.properties')}}"
+     offset: "{{lookup('ini','hub.offset type=properties file=hub.properties') |int}}"
+     git_core_util: "{{lookup('ini','hub.git_core_util type=properties file=hub.properties')}}"
+     branch_core_util: "{{lookup('ini','hub.branch_core_util type=properties file=hub.properties')}}"
+     git_component_dep: "{{lookup('ini','hub.git_component-dep type=properties file=hub.properties')}}"
+     branch_component_dep: "{{lookup('ini','hub.branch_component-dep type=properties file=hub.properties')}}"
+     git_product_hub: "{{lookup('ini','hub.git_product_hub type=properties file=hub.properties')}}"
+     branch_product_hub: "{{lookup('ini','hub.branch_product_hub type=properties file=hub.properties')}}"
+
+    tasks:
+#-------------------Extract wso2telcohub-2.1.5-SNAPSHOT-------------------
+     - unarchive:
+        src: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT.zip"
+        dest: "{{repo_home}}/product-hub/modules/distribution/product/target/"
+#-------------------Extract wso2telcohub-2.1.5-SNAPSHOT-------------------
+#-------------------Change Deployment Type------------------
+     - name: Change deployment type to hub
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/bin/wso2server.sh"
+         regexp: 'DDEPLOYMENT_TYPE=external_gateway'
+         replace: 'DDEPLOYMENT_TYPE=hub'
+         backup: yes
+#-------------------Change Deployment Type------------------
+#-------------------Copy mysql connector-------------------
+     - name: copying mysql-connector-java to [carbon_home]/repository/components/lib
+       copy:
+        src: "{{ item }}"
+        dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/components/lib"
+        owner: root
+        group: root
+        mode: 0644
+       with_fileglob:
+        - "{{playbook_dir}}/prereq/mysql-connector-java-*.jar"
+#-------------------Copy mysql connector-------------------
+#-------------------Change master-datasources.xml-------------------
+     - name: Setup username in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: '{username}'
+         replace: '{{mysql_user}}'
+         backup: yes
+
+     - name: Setup password in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: '{password}'
+         replace: '{{mysql_password}}'
+         backup: yes
+
+     - name: Setup host in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: '{database host}'
+         replace: '{{mysql_host}}'
+         backup: yes
+
+     - name: Setup port in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: '{port}'
+         replace: '3306'
+         backup: yes
+
+     - name: Rename hub_apimgtdb to prodapimgtdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_apimgtdb'
+         replace: 'prodapimgtdb'
+         backup: yes
+
+     - name: Rename hub_userstoredb to prodUMdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_userstoredb'
+         replace: 'prodUMdb'
+         backup: yes
+
+     - name: Rename hub_apistatsdb to prodStatdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_apistatsdb'
+         replace: 'prodStatdb'
+         backup: yes
+
+     - name: Rename hub_depdb to proddepdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_depdb'
+         replace: 'proddepdb'
+         backup: yes
+
+     - name: Rename hub_regdb to prodregdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_regdb'
+         replace: 'prodregdb'
+         backup: yes
+
+     - name: Rename hub_mbdb to prodmbdb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'hub_mbdb'
+         replace: 'prodmbdb'
+         backup: yes
+
+     - name: Rename activiti to prodactivitydb in master-datasources.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/datasources/master-datasources.xml"
+         regexp: 'activiti'
+         replace: 'prodactivitydb'
+         backup: yes
+#-------------------Change master-datasources.xml-------------------
+#-------------------create new mysql user-------------------
+     - name: create new mysql user
+       shell: mysql -uroot -proot -e 'CREATE USER '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       ignore_errors: True
+#-------------------create new mysql user-------------------
+#-------------------check db exists and run db scripts-------------------
+#-------------------Setup API Manager database------------------
+     - name: check if prodapimgtdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodapimgtdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodapimgtdb database
+       shell: mysql -uroot -proot -D prodapimgtdb -e "DROP DATABASE prodapimgtdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodapimgtdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodapimgtdb;'
+       when: import_dbs == "yes"
+
+     - name: run the prodapimgtdb database script
+       shell: mysql -uroot -proot -D prodapimgtdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/apimgt/mysql5.7.sql'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodapimgtdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodapimgtdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup API Manager database------------------
+#-------------------Setup User Manager database------------------
+     - name: check if prodUMdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodUMdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodUMdb database
+       shell: mysql -uroot -proot -D prodUMdb -e "DROP DATABASE prodUMdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodUMdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodUMdb;'
+       when: import_dbs == "yes"
+
+     - name: run the prodUMdb database script
+       shell: mysql -uroot -proot -D prodUMdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/mysql5.7.sql;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodUMdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodUMdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup User Manager database------------------
+#-------------------Setup API Manager statistics db------------------
+     - name: check if prodStatdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodStatdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodStatdb database
+       shell: mysql -uroot -proot -D prodStatdb -e "DROP DATABASE prodStatdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodStatdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodStatdb;'
+       when: import_dbs == "yes"
+
+     - name: run the prodStatdb database script
+       shell: mysql -uroot -proot -D prodStatdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/dep-hub/mysql/stats_db.sql;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodStatdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodStatdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup API Manager statistics db------------------
+#-------------------Setup DEP database------------------
+     - name: check if proddepdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep proddepdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the proddepdb database
+       shell: mysql -uroot -proot -D proddepdb -e "DROP DATABASE proddepdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the proddepdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE proddepdb;'
+       when: import_dbs == "yes"
+
+     - name: run the proddepdb database script
+       shell: mysql -uroot -proot -D proddepdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/dep-hub/mysql/dep_db.sql;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to proddepdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON proddepdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup DEP database------------------
+#-------------------Setup Registry Manager database------------------
+     - name: check if prodregdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodregdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodregdb database
+       shell: mysql -uroot -proot -D prodregdb -e "DROP DATABASE prodregdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodregdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodregdb;'
+       when: import_dbs == "yes"
+
+     - name: run the prodregdb database script
+       shell: mysql -uroot -proot -D prodregdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/mysql5.7.sql;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodregdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodregdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup Registry Manager database------------------
+#-------------------Setup message broker database------------------
+     - name: check if prodmbdb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodmbdb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodmbdb database
+       shell: mysql -uroot -proot -D prodmbdb -e "DROP DATABASE prodmbdb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodmbdb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodmbdb;'
+       when: import_dbs == "yes"
+
+     - name: run the prodmbdb database script
+       shell: mysql -uroot -proot -D prodmbdb -e 'SOURCE {{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/dbscripts/mb-store/mysql-mb.sql;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodmbdb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodmbdb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup message broker database------------------
+#-------------------Setup activity database------------------
+     - name: check if prodactivitydb DB exists
+       shell: mysql -uroot -proot -e 'SHOW DATABASES;' | grep prodactivitydb
+       register: dbstatus
+       ignore_errors: True
+
+     - name: remove the prodactivitydb database
+       shell: mysql -uroot -proot -D prodactivitydb -e "DROP DATABASE prodactivitydb"
+       when: dbstatus.rc == 0  and import_dbs == "yes" 
+
+     - name: create the prodactivitydb database
+       shell: mysql -uroot -proot -e 'CREATE DATABASE prodactivitydb;'
+       when: import_dbs == "yes"
+
+     - name: grant permission to prodactivitydb database
+       shell: mysql -uroot -proot -e 'GRANT ALL ON prodactivitydb.* TO '{{mysql_user}}'@'{{mysql_host}}'   IDENTIFIED BY "{{mysql_password}}";'
+       when: import_dbs == "yes"
+#-------------------Setup activity database------------------
+#-------------------check db exists and run db scripts-------------------
+#-------------------Setup Workflow Configuration-------------------
+#-------------------Change offset------------------
+     - name: Change offset value in repository/conf/carbon.xml
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/carbon.xml"
+         regexp: '<Offset>0</Offset>'
+         replace: '<Offset>{{offset}}</Offset>'
+         backup: yes
+#-------------------Change offset------------------
+#-------------------Setup workflow.properties file-------------------
+     - name: Change port value according to offset repository/conf/workflow.properties
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/workflow.properties"
+         regexp: 'service.host=http://localhost:9763/workflow-service/'
+         replace: 'service.host=http://localhost:{{(http_port|int)+(offset|int)}}/workflow-service/'
+         backup: yes
+
+     - name: Change email address in repository/conf/workflow.properties
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/workflow.properties"
+         regexp: 'workflow.email.notification.from.address=email@address.com'
+         replace: 'workflow.email.notification.from.address={{wso2_mail_address}}'
+         backup: yes
+
+     - name: Setup email password in repository/conf/workflow.properties
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/conf/workflow.properties"
+         regexp: 'workflow.email.notification.from.password=password'
+         replace: 'workflow.email.notification.from.password={{wso2_mail_password}}'
+         backup: yes
+#-------------------Setup workflow.properties file-------------------
+#-------------------Setup workflow-extension.xml file-------------------
+     - name: Setup https port in workflow-extension.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/resources/workflow-extensions.xml"
+         regexp: '9443'
+         replace: '{{(https_port|int) + (offset|int)}}'
+         backup: yes
+
+     - name: Setup http port in workflow-extension.xml file
+       replace: 
+         dest: "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT/repository/resources/workflow-extensions.xml"
+         regexp: '9763'
+         replace: '{{(http_port|int) + (offset|int)}}'
+         backup: yes
+#-------------------Setup workflow-extension.xml file-------------------
+#-------------------Setup Workflow Configuration-------------------
+#-------------------Start the identity server-------------------
+     - name: Stop IS 
+       shell: "{{hub_home}}/wso2telcohub-{{product_version}}-SNAPSHOT/bin/./wso2server.sh stop"
+       ignore_errors: True
+
+     - name: remove existing wso2telcohub-product_version-SNAPSHOT 
+       shell: rm -r "{{hub_home}}/wso2telcohub-{{product_version}}-SNAPSHOT"
+       ignore_errors: True
+
+     - name: copying final pack to /mnt/MIG-52/pack{{date}}
+       command: cp -r "{{repo_home}}/product-hub/modules/distribution/product/target/wso2telcohub-{{product_version}}-SNAPSHOT" "{{hub_home}}"
+
+     - name: Start IS
+       shell: "{{hub_home}}/wso2telcohub-{{product_version}}-SNAPSHOT/bin/./wso2server.sh start"
+       ignore_errors: True
+#-------------------Start the identity server-------------------
+#-------------------Wait for server to start-------------------
+     - name: Wait for server to start
+       wait_for:
+         port: 9443
+         delay: 10
+       ignore_errors: True
+#-------------------Wait for server to start-------------------
+#-------------------Change site.json according to the offset-----------------
+     - name: Change https port in site.json file
+       replace: 
+         dest: "{{hub_home}}/wso2telcohub-{{product_version}}-SNAPSHOT/repository/deployment/server/jaggeryapps/manage/site/conf/site.json"
+         regexp: '9443'
+         replace: '{{(https_port|int) + (offset|int)}}'
+         backup: yes
+
+     - name: Change http port in site.json file
+       replace: 
+         dest: "{{hub_home}}/wso2telcohub-{{product_version}}-SNAPSHOT/repository/deployment/server/jaggeryapps/manage/site/conf/site.json"
+         regexp: '9763'
+         replace: '{{(http_port|int) + (offset|int)}}'
+         backup: yes
+#-------------------Change site.json according to the offset-----------------
